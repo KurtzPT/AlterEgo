@@ -1431,6 +1431,28 @@ function Module:Render()
   local windowWidth, windowHeight = numCharacters == 0 and 500 or 0, 0
   ---@type AE_Module_WeeklyAffixes|nil
   local weeklyAffixesModule = addon.Core:GetModule("WeeklyAffixes", true)
+  local preyDifficulties = Data:GetPreyDifficulties()
+  local now = time()
+  local killIcon = TableGet(Constants.raidKillIcons, "id", Data.db.global.raids.killIcon or "skull") or Constants.raidKillIcons[1]
+
+  -- Built once per render; these do not depend on the character
+  ---@type table<number, AE_PreyQuest[]>
+  local preyQuestsByDifficulty = {}
+  TableForEach(preyDifficulties, function(difficulty)
+    preyQuestsByDifficulty[difficulty.id] = TableFilter(Data.preyQuests, function(quest)
+      return quest.difficultyID == difficulty.id
+    end)
+  end)
+
+  ---@type LiqUI_Encounter[]
+  local encounters = {}
+  local numEncounters = 0
+  TableForEach(raids or {}, function(raid)
+    TableForEach(raid.encounters or {}, function(encounter)
+      table.insert(encounters, encounter)
+      numEncounters = numEncounters + 1
+    end)
+  end)
 
   local scrollContent = self.window.body.content.scrollArea.content
 
@@ -1557,7 +1579,7 @@ function Module:Render()
     do -- Prey Difficulties
       self.window.body.sidebar.preyDifficulties = self.window.body.sidebar.preyDifficulties or {}
       TableForEach(self.window.body.sidebar.preyDifficulties, function(f) f:Hide() end)
-      TableForEach(Data:GetPreyDifficulties(), function(difficulty, difficultyIndex)
+      TableForEach(preyDifficulties, function(difficulty, difficultyIndex)
         if not Data.db.global.prey.enabled then return end
         local difficultyFrame = self.window.body.sidebar.preyDifficulties[difficultyIndex]
         if not difficultyFrame then
@@ -2056,7 +2078,7 @@ function Module:Render()
       do -- Prey Progress
         characterFrame.preyProgress = characterFrame.preyProgress or {}
         TableForEach(characterFrame.preyProgress, function(f) f:Hide() end)
-        TableForEach(Data:GetPreyDifficulties(), function(difficulty, difficultyIndex)
+        TableForEach(preyDifficulties, function(difficulty, difficultyIndex)
           if not Data.db.global.prey.enabled then return end
           local difficultyFrame = characterFrame.preyProgress[difficultyIndex]
           if not difficultyFrame then
@@ -2074,10 +2096,7 @@ function Module:Render()
           local numQuestsCompleted = 0
           local characterQuestsCompleted = character.prey and character.prey.questsCompleted or {}
 
-          local quests = TableFilter(Data.preyQuests, function(quest)
-            return quest.difficultyID == difficulty.id
-          end)
-          local questsCompleted = TableFilter(quests, function(quest)
+          local questsCompleted = TableFilter(preyQuestsByDifficulty[difficulty.id], function(quest)
             return characterQuestsCompleted[quest.questID]
           end)
           numQuestsCompleted = TableCount(questsCompleted)
@@ -2332,17 +2351,6 @@ function Module:Render()
           rowCount = rowCount + 1
           totalHeight = totalHeight + RAIDS_ROW_HEIGHT
 
-          -- Get all raid encounters
-          ---@type LiqUI_Encounter[]
-          local encounters = {}
-          local numEncounters = 0
-          TableForEach(raids or {}, function(raid, raidIndex)
-            TableForEach(raid.encounters or {}, function(encounter, encounterIndex)
-              table.insert(encounters, encounter)
-              numEncounters = numEncounters + 1
-            end)
-          end)
-
           difficultyFrame:SetScript("OnEnter", function()
             GameTooltip:SetOwner(difficultyFrame, "ANCHOR_RIGHT")
             GameTooltip:SetText("Raid Progress", 1, 1, 1, 1, true)
@@ -2382,7 +2390,6 @@ function Module:Render()
           local gapWidthTotal = gapCount * gapWidth
           local iconSize = (CHARACTER_WIDTH - gapWidthTotal) / (halfEncounters + (numEncounters % 2 == 0 and 0.5 or 0))
           local iconSizeMax = RAIDS_ROW_HEIGHT * 0.5
-          local killIcon = TableGet(Constants.raidKillIcons, "id", Data.db.global.raids.killIcon or "skull") or Constants.raidKillIcons[1]
           local killIconScale = killIcon.scale or 1
           TableForEach(difficultyFrame.iconFrames, function(f) f:Hide() end)
           TableForEach(encounters or {}, function(encounter, encounterIndex)
@@ -2394,12 +2401,12 @@ function Module:Render()
               difficultyFrame.iconFrames[encounterIndex] = iconFrame
             end
 
-            local color = CreateColor(1, 1, 1)
+            local color = WHITE_FONT_COLOR
             local alpha = 0.08
 
             if character.raids.savedInstances then
               local savedInstance = TableFind(character.raids.savedInstances, function(instance)
-                return GetBaseDifficultyID(instance.difficultyID) == difficulty.id and instance.instanceID == encounter.instanceID and instance.expires > time()
+                return GetBaseDifficultyID(instance.difficultyID) == difficulty.id and instance.instanceID == encounter.instanceID and instance.expires > now
               end)
               if savedInstance then
                 local savedEncounter = TableGet(savedInstance.encounters, "instanceEncounterID", encounter.instanceEncounterID)
