@@ -1480,32 +1480,35 @@ function Module:Render()
         local affixFrame = self.window.affixes.buttons[affixIndex]
         if not affixFrame then
           affixFrame = CreateFrame("Button", "$parentAffix" .. affixIndex, self.window.affixes)
+          affixFrame:SetScript("OnEnter", function()
+            GameTooltip:SetOwner(affixFrame, "ANCHOR_TOP")
+            GameTooltip:SetText(affixFrame.affixName, 1, 1, 1)
+            GameTooltip:AddLine(affixFrame.affixDescription, nil, nil, nil, true)
+            if affixFrame.weeklyAffixesModule then
+              GameTooltip:AddLine(" ")
+              GameTooltip:AddLine("<Click to View Weekly Affixes>", GREEN_FONT_COLOR.r, GREEN_FONT_COLOR.g, GREEN_FONT_COLOR.b)
+            end
+            GameTooltip:Show()
+          end)
+          affixFrame:SetScript("OnLeave", function()
+            GameTooltip:Hide()
+          end)
+          affixFrame:SetScript("OnClick", function()
+            if not affixFrame.weeklyAffixesModule then return end
+            local affixesWindow = LiqUI:GetElement("Window", addon.name .. "Affixes")
+            if affixesWindow then
+              affixesWindow:Toggle()
+            end
+          end)
           self.window.affixes.buttons[affixIndex] = affixFrame
         end
 
+        affixFrame.affixName = name
+        affixFrame.affixDescription = desc
+        affixFrame.weeklyAffixesModule = weeklyAffixesModule
         affixFrame:ClearAllPoints()
         affixFrame:SetSize(20, 20)
         affixFrame:SetNormalTexture(fileDataID)
-        affixFrame:SetScript("OnEnter", function()
-          GameTooltip:SetOwner(affixFrame, "ANCHOR_TOP")
-          GameTooltip:SetText(name, 1, 1, 1)
-          GameTooltip:AddLine(desc, nil, nil, nil, true)
-          if weeklyAffixesModule then
-            GameTooltip:AddLine(" ")
-            GameTooltip:AddLine("<Click to View Weekly Affixes>", GREEN_FONT_COLOR.r, GREEN_FONT_COLOR.g, GREEN_FONT_COLOR.b)
-          end
-          GameTooltip:Show()
-        end)
-        affixFrame:SetScript("OnLeave", function()
-          GameTooltip:Hide()
-        end)
-        affixFrame:SetScript("OnClick", function()
-          if not weeklyAffixesModule then return end
-          local affixesWindow = LiqUI:GetElement("Window", addon.name .. "Affixes")
-          if affixesWindow then
-            affixesWindow:Toggle()
-          end
-        end)
 
         if affixIndex == 1 then
           affixFrame:ClearAllPoints()
@@ -1590,26 +1593,27 @@ function Module:Render()
           difficultyFrame.text:SetFontObject("GameFontHighlight_NoShadow")
           difficultyFrame.text:SetJustifyH("LEFT")
           difficultyFrame.text:SetVertexColor(1.0, 1.0, 1.0, 1.0)
+          difficultyFrame:SetScript("OnEnter", function()
+            local frameDifficulty = difficultyFrame.difficulty
+            GameTooltip:SetOwner(difficultyFrame, "ANCHOR_RIGHT")
+            GameTooltip:SetText(frameDifficulty.name, 1, 1, 1)
+            GameTooltip:AddLine("With each difficulty level, new affixes are added, leading to more challenging encounters.", nil, nil, nil, true)
+            TableForEach(frameDifficulty.affixes, function(affixID)
+              local affix = TableGet(Data.preyAffixes, "id", affixID)
+              if not affix then return end
+              GameTooltip:AddLine(" ")
+              GameTooltip:AddLine(format("%s:", affix.name), nil, nil, nil, true)
+              GameTooltip:AddLine(affix.description, 1, 1, 1, true)
+            end)
+            GameTooltip:Show()
+          end)
+          difficultyFrame:SetScript("OnLeave", function()
+            GameTooltip:Hide()
+          end)
           self.window.body.sidebar.preyDifficulties[difficultyIndex] = difficultyFrame
         end
 
-        difficultyFrame:SetScript("OnEnter", function()
-          GameTooltip:SetOwner(difficultyFrame, "ANCHOR_RIGHT")
-          GameTooltip:SetText(difficulty.name, 1, 1, 1)
-          GameTooltip:AddLine("With each difficulty level, new affixes are added, leading to more challenging encounters.", nil, nil, nil, true)
-          TableForEach(difficulty.affixes, function(affixID)
-            local affix = TableGet(Data.preyAffixes, "id", affixID)
-            if not affix then return end
-            GameTooltip:AddLine(" ")
-            GameTooltip:AddLine(format("%s:", affix.name), nil, nil, nil, true)
-            GameTooltip:AddLine(affix.description, 1, 1, 1, true)
-          end)
-          GameTooltip:Show()
-        end)
-        difficultyFrame:SetScript("OnLeave", function()
-          GameTooltip:Hide()
-        end)
-
+        difficultyFrame.difficulty = difficulty
         difficultyFrame:SetPoint("TOPLEFT", self.window.body.sidebar, "TOPLEFT", 0, -totalHeight)
         difficultyFrame:SetPoint("TOPRIGHT", self.window.body.sidebar, "TOPRIGHT", 0, -totalHeight)
         difficultyFrame:SetHeight(Constants.sizes.row)
@@ -1664,6 +1668,26 @@ function Module:Render()
             dungeonFrame.text:SetPoint("BOTTOMRIGHT", dungeonFrame, "BOTTOMRIGHT", -Constants.sizes.padding, 3)
             dungeonFrame.text:SetJustifyH("LEFT")
             dungeonFrame.text:SetFontObject("GameFontHighlight_NoShadow")
+            dungeonFrame:SetScript("OnEnter", function()
+              local frameDungeon = dungeonFrame.dungeon
+              local teleportSpellID = dungeonFrame.knownTeleportSpellID
+              ---@diagnostic disable-next-line: param-type-mismatch
+              GameTooltip:SetOwner(dungeonFrame, "ANCHOR_RIGHT")
+              GameTooltip:SetText(frameDungeon.name, 1, 1, 1)
+              if teleportSpellID then
+                GameTooltip:ClearLines()
+                GameTooltip:SetSpellByID(teleportSpellID)
+                GameTooltip:AddLine(" ")
+                GameTooltip:AddLine("<Click to Teleport>", GREEN_FONT_COLOR.r, GREEN_FONT_COLOR.g, GREEN_FONT_COLOR.b)
+                _G[GameTooltip:GetName() .. "TextLeft1"]:SetText(frameDungeon.name)
+              else
+                GameTooltip:AddLine(format("Time this dungeon on level %d or above to unlock teleportation.", dungeonPortalUnlockLevel), nil, nil, nil, true)
+              end
+              GameTooltip:Show()
+            end)
+            dungeonFrame:SetScript("OnLeave", function()
+              GameTooltip:Hide()
+            end)
             self.window.body.sidebar.mpluslabels[dungeonIndex] = dungeonFrame
           end
 
@@ -1680,25 +1704,8 @@ function Module:Render()
             -- TODO: Unset spell attribute? It's not like the dungeon pool changes during a session
           end
 
-          dungeonFrame:SetScript("OnEnter", function()
-            ---@diagnostic disable-next-line: param-type-mismatch
-            GameTooltip:SetOwner(dungeonFrame, "ANCHOR_RIGHT")
-            GameTooltip:SetText(dungeon.name, 1, 1, 1)
-            if knownTeleportSpellID then
-              GameTooltip:ClearLines()
-              GameTooltip:SetSpellByID(knownTeleportSpellID)
-              GameTooltip:AddLine(" ")
-              GameTooltip:AddLine("<Click to Teleport>", GREEN_FONT_COLOR.r, GREEN_FONT_COLOR.g, GREEN_FONT_COLOR.b)
-              _G[GameTooltip:GetName() .. "TextLeft1"]:SetText(dungeon.name)
-            else
-              GameTooltip:AddLine(format("Time this dungeon on level %d or above to unlock teleportation.", dungeonPortalUnlockLevel), nil, nil, nil, true)
-            end
-            GameTooltip:Show()
-          end)
-          dungeonFrame:SetScript("OnLeave", function()
-            GameTooltip:Hide()
-          end)
-
+          dungeonFrame.dungeon = dungeon
+          dungeonFrame.knownTeleportSpellID = knownTeleportSpellID
           dungeonFrame:SetPoint("TOPLEFT", self.window.body.sidebar, "TOPLEFT", 0, -totalHeight)
           dungeonFrame:SetPoint("TOPRIGHT", self.window.body.sidebar, "TOPRIGHT", 0, -totalHeight)
           dungeonFrame:SetHeight(Constants.sizes.row)
@@ -1750,18 +1757,18 @@ function Module:Render()
             difficultyFrame.text:SetPoint("BOTTOMRIGHT", difficultyFrame, "BOTTOMRIGHT", -Constants.sizes.padding, 3)
             difficultyFrame.text:SetJustifyH("LEFT")
             difficultyFrame.text:SetFontObject("GameFontHighlight_NoShadow")
+            difficultyFrame:SetScript("OnEnter", function()
+              GameTooltip:SetOwner(difficultyFrame, "ANCHOR_RIGHT")
+              GameTooltip:SetText(difficultyFrame.difficulty.name, 1, 1, 1)
+              GameTooltip:Show()
+            end)
+            difficultyFrame:SetScript("OnLeave", function()
+              GameTooltip:Hide()
+            end)
             self.window.body.sidebar.raidDifficulties[difficultyIndex] = difficultyFrame
           end
 
-          difficultyFrame:SetScript("OnEnter", function()
-            GameTooltip:SetOwner(difficultyFrame, "ANCHOR_RIGHT")
-            GameTooltip:SetText(difficulty.name, 1, 1, 1)
-            GameTooltip:Show()
-          end)
-          difficultyFrame:SetScript("OnLeave", function()
-            GameTooltip:Hide()
-          end)
-
+          difficultyFrame.difficulty = difficulty
           difficultyFrame:SetPoint("TOPLEFT", self.window.body.sidebar, "TOPLEFT", 0, -totalHeight)
           difficultyFrame:SetPoint("TOPRIGHT", self.window.body.sidebar, "TOPRIGHT", 0, -totalHeight)
           difficultyFrame:SetHeight(RAIDS_ROW_HEIGHT)
@@ -1818,27 +1825,29 @@ function Module:Render()
             label.text:SetPoint("BOTTOMRIGHT", label, "BOTTOMRIGHT", -Constants.sizes.padding, 3)
             label.text:SetJustifyH("LEFT")
             label.text:SetFontObject("GameFontHighlight_NoShadow")
+            label:SetScript("OnEnter", function()
+              local labelCurrency = label.currency
+              local labelColor = ITEM_QUALITY_COLORS[labelCurrency.quality or Enum.ItemQuality.Common]
+              GameTooltip:SetOwner(label, "ANCHOR_RIGHT")
+              GameTooltip:SetText(labelCurrency.name, labelColor.r, labelColor.g, labelColor.b)
+              if labelCurrency.description then
+                GameTooltip:AddLine(labelCurrency.description, nil, nil, nil, true)
+              end
+              if labelCurrency.tooltipNote then
+                GameTooltip:AddLine(" ")
+                GameTooltip:AddLine(format("%s %s", RARE_BLUE_COLOR:WrapTextInColorCode(addon.name .. ":"), labelCurrency.tooltipNote), 1, 1, 1, true)
+              end
+              GameTooltip:Show()
+            end)
+            label:SetScript("OnLeave", function()
+              GameTooltip:Hide()
+            end)
             self.window.body.sidebar.currencyLabels[currencyIndex] = label
           end
 
           local color = ITEM_QUALITY_COLORS[currency.quality or Enum.ItemQuality.Common]
 
-          label:SetScript("OnEnter", function()
-            GameTooltip:SetOwner(label, "ANCHOR_RIGHT")
-            GameTooltip:SetText(currency.name, color.r, color.g, color.b)
-            if currency.description then
-              GameTooltip:AddLine(currency.description, nil, nil, nil, true)
-            end
-            if currency.tooltipNote then
-              GameTooltip:AddLine(" ")
-              GameTooltip:AddLine(format("%s %s", RARE_BLUE_COLOR:WrapTextInColorCode(addon.name .. ":"), currency.tooltipNote), 1, 1, 1, true)
-            end
-            GameTooltip:Show()
-          end)
-          label:SetScript("OnLeave", function()
-            GameTooltip:Hide()
-          end)
-
+          label.currency = currency
           label:SetPoint("TOPLEFT", self.window.body.sidebar, "TOPLEFT", 0, -totalHeight)
           label:SetPoint("TOPRIGHT", self.window.body.sidebar, "TOPRIGHT", 0, -totalHeight)
           label:SetHeight(Constants.sizes.row)
@@ -1921,11 +1930,78 @@ function Module:Render()
             infoFrame.text:SetPoint("BOTTOMRIGHT", infoFrame, "BOTTOMRIGHT", -Constants.sizes.padding * 1.5, Constants.sizes.padding)
             infoFrame.text:SetJustifyH("CENTER")
             infoFrame.text:SetFontObject("GameFontHighlight_NoShadow")
-            characterFrame.infoFrames[infoIndex] = infoFrame
-          end
+            infoFrame:SetScript("OnEnter", function()
+              local frameInfo = infoFrame.info
+              if frameInfo.onEnter then
+                frameInfo.onEnter(infoFrame, infoFrame.character)
+              end
 
-          if infoIndex == 1 then
-            if not infoFrame.SortLeftButton then
+              if infoFrame.SortLeftButton then
+                infoFrame.SortLeftButton:Hide()
+                infoFrame.SortRightButton:Hide()
+                if Data.db.global.sorting == "custom" and not InCombatLockdown() then
+                  infoFrame.SortLeftButton:SetPropagateMouseMotion(true)
+                  infoFrame.SortRightButton:SetPropagateMouseMotion(true)
+                  if infoFrame.characterIndex > 1 then infoFrame.SortLeftButton:Show() end
+                  if infoFrame.characterIndex < infoFrame.numCharacters then infoFrame.SortRightButton:Show() end
+                end
+              end
+
+              if not frameInfo.backgroundColor then
+                SetHighlightColor(infoFrame)
+              end
+            end)
+            infoFrame:SetScript("OnLeave", function()
+              local frameInfo = infoFrame.info
+              if frameInfo.onLeave then
+                frameInfo.onLeave(infoFrame, infoFrame.character)
+              end
+
+              if infoFrame.SortLeftButton then
+                infoFrame.SortLeftButton:Hide()
+                infoFrame.SortRightButton:Hide()
+              end
+
+              if not frameInfo.backgroundColor then
+                SetHighlightColor(infoFrame, 1, 1, 1, 0)
+              end
+            end)
+            infoFrame:SetScript("OnClick", function()
+              if infoFrame.info.onClick then
+                infoFrame.info.onClick(infoFrame, infoFrame.character)
+              end
+            end)
+
+            if infoIndex == 1 then
+              ---@param button Button
+              ---@param direction number
+              ---@param label string
+              local function setupSortButton(button, direction, label)
+                button:SetScript("OnEnter", function()
+                  if infoFrame.info.onLeave then
+                    infoFrame.info.onLeave(infoFrame, infoFrame.character)
+                  end
+                  button.Icon:SetDesaturation(0)
+                  GameTooltip:SetOwner(button, "ANCHOR_RIGHT")
+                  GameTooltip:SetText("Custom Order", 1, 1, 1, 1, true)
+                  GameTooltip:AddLine("Move your character around.")
+                  GameTooltip:AddLine(" ")
+                  GameTooltip:AddLine(label, GREEN_FONT_COLOR.r, GREEN_FONT_COLOR.g, GREEN_FONT_COLOR.b)
+                  GameTooltip:Show()
+                end)
+                button:SetScript("OnLeave", function()
+                  button.Icon:SetDesaturation(1)
+                  GameTooltip:Hide()
+                  if infoFrame.info.onEnter then
+                    infoFrame.info.onEnter(infoFrame, infoFrame.character)
+                  end
+                end)
+                button:SetScript("OnClick", function()
+                  Data:SortCharacter(infoFrame.character, direction)
+                  self:Render()
+                end)
+              end
+
               infoFrame.SortLeftButton = CreateFrame("Button", infoFrame:GetName() .. "SortLeft", infoFrame)
               infoFrame.SortLeftButton:SetSize(Constants.sizes.row, Constants.sizes.row)
               infoFrame.SortLeftButton:SetPoint("LEFT", infoFrame, "LEFT")
@@ -1935,31 +2011,8 @@ function Module:Render()
               infoFrame.SortLeftButton.Icon:SetSize(12, 12)
               infoFrame.SortLeftButton.Icon:SetPoint("CENTER", infoFrame.SortLeftButton, "CENTER", 0, 0)
               infoFrame.SortLeftButton:Hide()
-            end
-            infoFrame.SortLeftButton:SetScript("OnEnter", function()
-              if info.onLeave then
-                info.onLeave(infoFrame, character)
-              end
-              infoFrame.SortLeftButton.Icon:SetDesaturation(0)
-              GameTooltip:SetOwner(infoFrame.SortLeftButton, "ANCHOR_RIGHT")
-              GameTooltip:SetText("Custom Order", 1, 1, 1, 1, true)
-              GameTooltip:AddLine("Move your character around.")
-              GameTooltip:AddLine(" ")
-              GameTooltip:AddLine("<Click to Move Left>", GREEN_FONT_COLOR.r, GREEN_FONT_COLOR.g, GREEN_FONT_COLOR.b)
-              GameTooltip:Show()
-            end)
-            infoFrame.SortLeftButton:SetScript("OnLeave", function()
-              infoFrame.SortLeftButton.Icon:SetDesaturation(1)
-              GameTooltip:Hide()
-              if info.onEnter then
-                info.onEnter(infoFrame, character)
-              end
-            end)
-            infoFrame.SortLeftButton:SetScript("OnClick", function()
-              Data:SortCharacter(character, -1)
-              self:Render()
-            end)
-            if not infoFrame.SortRightButton then
+              setupSortButton(infoFrame.SortLeftButton, -1, "<Click to Move Left>")
+
               infoFrame.SortRightButton = CreateFrame("Button", infoFrame:GetName() .. "SortRight", infoFrame)
               infoFrame.SortRightButton:SetSize(Constants.sizes.row, Constants.sizes.row)
               infoFrame.SortRightButton:SetPoint("RIGHT", infoFrame, "RIGHT")
@@ -1969,35 +2022,19 @@ function Module:Render()
               infoFrame.SortRightButton.Icon:SetSize(12, 12)
               infoFrame.SortRightButton.Icon:SetPoint("CENTER", infoFrame.SortRightButton, "CENTER", 0, 0)
               infoFrame.SortRightButton:Hide()
+              setupSortButton(infoFrame.SortRightButton, 1, "<Click to Move Right>")
             end
-            infoFrame.SortRightButton:SetScript("OnEnter", function()
-              if info.onLeave then
-                info.onLeave(infoFrame, character)
-              end
-              infoFrame.SortRightButton.Icon:SetDesaturation(0)
-              GameTooltip:SetOwner(infoFrame.SortRightButton, "ANCHOR_RIGHT")
-              GameTooltip:SetText("Custom Order", 1, 1, 1, 1, true)
-              GameTooltip:AddLine("Move your character around.")
-              GameTooltip:AddLine(" ")
-              GameTooltip:AddLine("<Click to Move Right>", GREEN_FONT_COLOR.r, GREEN_FONT_COLOR.g, GREEN_FONT_COLOR.b)
-              GameTooltip:Show()
-            end)
-            infoFrame.SortRightButton:SetScript("OnLeave", function()
-              infoFrame.SortRightButton.Icon:SetDesaturation(1)
-              GameTooltip:Hide()
-              if info.onEnter then
-                info.onEnter(infoFrame, character)
-              end
-            end)
-            infoFrame.SortRightButton:SetScript("OnClick", function()
-              Data:SortCharacter(character, 1)
-              self:Render()
-            end)
+            characterFrame.infoFrames[infoIndex] = infoFrame
+          end
 
-            if not InCombatLockdown() then
-              infoFrame.SortLeftButton:SetPropagateMouseMotion(true)
-              infoFrame.SortRightButton:SetPropagateMouseMotion(true)
-            end
+          infoFrame.info = info
+          infoFrame.character = character
+          infoFrame.characterIndex = characterIndex
+          infoFrame.numCharacters = numCharacters
+
+          if infoFrame.SortLeftButton and not InCombatLockdown() then
+            infoFrame.SortLeftButton:SetPropagateMouseMotion(true)
+            infoFrame.SortRightButton:SetPropagateMouseMotion(true)
           end
 
           if info.value then
@@ -2009,48 +2046,6 @@ function Module:Render()
           else
             SetBackgroundColor(infoFrame, 0, 0, 0, 0)
           end
-
-          infoFrame:SetScript("OnEnter", function()
-            if info.onEnter then
-              info.onEnter(infoFrame, character)
-            end
-
-            if infoIndex == 1 then
-              infoFrame.SortLeftButton:Hide()
-              infoFrame.SortRightButton:Hide()
-              if Data.db.global.sorting == "custom" and not InCombatLockdown() then
-                infoFrame.SortLeftButton:SetPropagateMouseMotion(true)
-                infoFrame.SortRightButton:SetPropagateMouseMotion(true)
-                if characterIndex > 1 then infoFrame.SortLeftButton:Show() end
-                if characterIndex < numCharacters then infoFrame.SortRightButton:Show() end
-              end
-            end
-
-            if not info.backgroundColor then
-              SetHighlightColor(infoFrame)
-            end
-          end)
-
-          infoFrame:SetScript("OnLeave", function()
-            if info.onLeave then
-              info.onLeave(infoFrame, character)
-            end
-
-            if infoIndex == 1 then
-              infoFrame.SortLeftButton:Hide()
-              infoFrame.SortRightButton:Hide()
-            end
-
-            if not info.backgroundColor then
-              SetHighlightColor(infoFrame, 1, 1, 1, 0)
-            end
-          end)
-
-          infoFrame:SetScript("OnClick", function()
-            if info.onClick then
-              info.onClick(infoFrame, character)
-            end
-          end)
 
           infoFrame:SetPoint("TOPLEFT", characterFrame, "TOPLEFT", 0, -totalHeight)
           infoFrame:SetPoint("TOPRIGHT", characterFrame, "TOPRIGHT", 0, -totalHeight)
@@ -2088,6 +2083,34 @@ function Module:Render()
             difficultyFrame.Text:SetPoint("BOTTOMRIGHT", difficultyFrame, "BOTTOMRIGHT", -Constants.sizes.padding * 1.5, Constants.sizes.padding)
             difficultyFrame.Text:SetFontObject("GameFontHighlight_NoShadow")
             difficultyFrame.Text:SetJustifyH("CENTER")
+            difficultyFrame:SetScript("OnEnter", function()
+              local frameCharacter = difficultyFrame.character
+              local frameTextColor = difficultyFrame.textColor
+              local frameNumQuestsCompleted = difficultyFrame.numQuestsCompleted
+              GameTooltip:SetOwner(difficultyFrame, "ANCHOR_RIGHT")
+              GameTooltip:SetText("Prey Hunt Progress", 1, 1, 1)
+              GameTooltip:AddDoubleLine("Difficulty:", difficultyFrame.difficulty.name, nil, nil, nil, 1, 1, 1)
+              if frameCharacter.prey == nil or frameCharacter.prey.questsCompleted == nil then
+                GameTooltip:AddLine(" ")
+                GameTooltip:AddLine("No Data")
+                GameTooltip:AddLine("Log your character to update.", 1, 1, 1, true)
+              else
+                GameTooltip:AddDoubleLine("Hunts Completed:", format("%d / %d", frameNumQuestsCompleted, preyWeeklyHuntCap), nil, nil, nil, frameTextColor.r, frameTextColor.g, frameTextColor.b)
+              end
+              if frameNumQuestsCompleted > 0 then
+                GameTooltip:AddLine(" ")
+                GameTooltip:AddLine("Quests Done:")
+                TableForEach(difficultyFrame.questsCompleted, function(quest)
+                  GameTooltip:AddLine(quest.name, 1, 1, 1)
+                end)
+              end
+              GameTooltip:Show()
+              SetHighlightColor(difficultyFrame, 1, 1, 1, 0.05)
+            end)
+            difficultyFrame:SetScript("OnLeave", function()
+              GameTooltip:Hide()
+              SetHighlightColor(difficultyFrame, 1, 1, 1, 0)
+            end)
             characterFrame.preyProgress[difficultyIndex] = difficultyFrame
           end
 
@@ -2109,32 +2132,11 @@ function Module:Render()
             textColor = WHITE_FONT_COLOR
           end
 
-          difficultyFrame:SetScript("OnEnter", function()
-            GameTooltip:SetOwner(difficultyFrame, "ANCHOR_RIGHT")
-            GameTooltip:SetText("Prey Hunt Progress", 1, 1, 1)
-            GameTooltip:AddDoubleLine("Difficulty:", difficulty.name, nil, nil, nil, 1, 1, 1)
-            if character.prey == nil or character.prey.questsCompleted == nil then
-              GameTooltip:AddLine(" ")
-              GameTooltip:AddLine("No Data")
-              GameTooltip:AddLine("Log your character to update.", 1, 1, 1, true)
-            else
-              GameTooltip:AddDoubleLine("Hunts Completed:", format("%d / %d", numQuestsCompleted, preyWeeklyHuntCap), nil, nil, nil, textColor.r, textColor.g, textColor.b)
-            end
-            if numQuestsCompleted > 0 then
-              GameTooltip:AddLine(" ")
-              GameTooltip:AddLine("Quests Done:")
-              TableForEach(questsCompleted, function(quest)
-                GameTooltip:AddLine(quest.name, 1, 1, 1)
-              end)
-            end
-            GameTooltip:Show()
-            SetHighlightColor(difficultyFrame, 1, 1, 1, 0.05)
-          end)
-          difficultyFrame:SetScript("OnLeave", function()
-            GameTooltip:Hide()
-            SetHighlightColor(difficultyFrame, 1, 1, 1, 0)
-          end)
-
+          difficultyFrame.difficulty = difficulty
+          difficultyFrame.character = character
+          difficultyFrame.textColor = textColor
+          difficultyFrame.numQuestsCompleted = numQuestsCompleted
+          difficultyFrame.questsCompleted = questsCompleted
           difficultyFrame:SetPoint("TOPLEFT", characterFrame, "TOPLEFT", 0, -totalHeight)
           difficultyFrame:SetPoint("TOPRIGHT", characterFrame, "TOPRIGHT", 0, -totalHeight)
           difficultyFrame:SetHeight(Constants.sizes.row)
@@ -2178,6 +2180,51 @@ function Module:Render()
             dungeonFrame.Score:SetPoint("RIGHT", dungeonFrame, "RIGHT", -Constants.sizes.padding * 2, 1)
             dungeonFrame.Score:SetJustifyH("RIGHT")
             dungeonFrame.Score:SetFontObject("GameFontHighlight_NoShadow")
+            dungeonFrame:SetScript("OnEnter", function()
+              local frameDungeon = dungeonFrame.dungeon
+              local frameAffixScores = dungeonFrame.affixScores
+              local frameOverallScore = dungeonFrame.overallScore
+              local frameBestAffixScore = dungeonFrame.bestAffixScore
+              local frameDungeonLevel = dungeonFrame.dungeonLevel
+              local frameSeasonID = dungeonFrame.seasonID
+              GameTooltip:SetOwner(dungeonFrame, "ANCHOR_RIGHT")
+              GameTooltip:SetText(frameDungeon.name, 1, 1, 1)
+
+              if frameAffixScores and TableCount(frameAffixScores) > 0 then
+                if frameOverallScore and dungeonFrame.hasBestRun then
+                  GameTooltip_AddNormalLine(GameTooltip, DUNGEON_SCORE_TOTAL_SCORE:format(dungeonFrame.color:WrapTextInColorCode(tostring(frameOverallScore))), GREEN_FONT_COLOR)
+                end
+
+                if frameBestAffixScore then
+                  GameTooltip_AddBlankLineToTooltip(GameTooltip)
+                  GameTooltip_AddNormalLine(GameTooltip, LFG_LIST_BEST_RUN)
+                  GameTooltip_AddColoredLine(GameTooltip, MYTHIC_PLUS_POWER_LEVEL:format(frameBestAffixScore.level), HIGHLIGHT_FONT_COLOR)
+
+                  local displayZeroHours = frameBestAffixScore.durationSec >= SECONDS_PER_HOUR
+                  local durationText = SecondsToClock(frameBestAffixScore.durationSec, displayZeroHours)
+
+                  if frameBestAffixScore.overTime then
+                    local overtimeText = DUNGEON_SCORE_OVERTIME_TIME:format(durationText)
+                    GameTooltip_AddColoredLine(GameTooltip, overtimeText, LIGHTGRAY_FONT_COLOR)
+                  else
+                    GameTooltip_AddColoredLine(GameTooltip, dungeonFrame.tier .. " " .. durationText, HIGHLIGHT_FONT_COLOR)
+                  end
+                end
+              end
+
+              GameTooltip:AddLine(" ")
+              GameTooltip:AddLine("Dungeon Timers")
+              GameTooltip:AddLine("|A:Professions-ChatIcon-Quality-Tier1:14:14:0:0|a " .. SecondsToClock(Helpers:calculateDungeonTimer(frameDungeon.time, frameDungeonLevel, 1, frameSeasonID), false), 1, 1, 1)
+              GameTooltip:AddLine("|A:Professions-ChatIcon-Quality-Tier2:16:16:0:0|a " .. SecondsToClock(Helpers:calculateDungeonTimer(frameDungeon.time, frameDungeonLevel, 2, frameSeasonID), false), 1, 1, 1)
+              GameTooltip:AddLine("|A:Professions-ChatIcon-Quality-Tier3:16:16:0:0|a " .. SecondsToClock(Helpers:calculateDungeonTimer(frameDungeon.time, frameDungeonLevel, 3, frameSeasonID), false), 1, 1, 1)
+              GameTooltip:Show()
+
+              SetHighlightColor(dungeonFrame, 1, 1, 1, 0.05)
+            end)
+            dungeonFrame:SetScript("OnLeave", function()
+              GameTooltip:Hide()
+              SetHighlightColor(dungeonFrame, 1, 1, 1, 0)
+            end)
             characterFrame.dungeonFrames[dungeonIndex] = dungeonFrame
           end
 
@@ -2265,45 +2312,15 @@ function Module:Render()
             dungeonFrame.Score:SetText("")
           end
 
-          dungeonFrame:SetScript("OnEnter", function()
-            GameTooltip:SetOwner(dungeonFrame, "ANCHOR_RIGHT")
-            GameTooltip:SetText(dungeon.name, 1, 1, 1)
-
-            if affixScores and TableCount(affixScores) > 0 then
-              if overallScore and (inTimeInfo or overTimeInfo) then
-                GameTooltip_AddNormalLine(GameTooltip, DUNGEON_SCORE_TOTAL_SCORE:format(color:WrapTextInColorCode(tostring(overallScore))), GREEN_FONT_COLOR)
-              end
-
-              if bestAffixScore then
-                GameTooltip_AddBlankLineToTooltip(GameTooltip)
-                GameTooltip_AddNormalLine(GameTooltip, LFG_LIST_BEST_RUN)
-                GameTooltip_AddColoredLine(GameTooltip, MYTHIC_PLUS_POWER_LEVEL:format(bestAffixScore.level), HIGHLIGHT_FONT_COLOR)
-
-                local displayZeroHours = bestAffixScore.durationSec >= SECONDS_PER_HOUR
-                local durationText = SecondsToClock(bestAffixScore.durationSec, displayZeroHours)
-
-                if bestAffixScore.overTime then
-                  local overtimeText = DUNGEON_SCORE_OVERTIME_TIME:format(durationText)
-                  GameTooltip_AddColoredLine(GameTooltip, overtimeText, LIGHTGRAY_FONT_COLOR)
-                else
-                  GameTooltip_AddColoredLine(GameTooltip, tier .. " " .. durationText, HIGHLIGHT_FONT_COLOR)
-                end
-              end
-            end
-
-            GameTooltip:AddLine(" ")
-            GameTooltip:AddLine("Dungeon Timers")
-            GameTooltip:AddLine("|A:Professions-ChatIcon-Quality-Tier1:14:14:0:0|a " .. SecondsToClock(Helpers:calculateDungeonTimer(dungeon.time, dungeonLevel, 1, seasonID), false), 1, 1, 1)
-            GameTooltip:AddLine("|A:Professions-ChatIcon-Quality-Tier2:16:16:0:0|a " .. SecondsToClock(Helpers:calculateDungeonTimer(dungeon.time, dungeonLevel, 2, seasonID), false), 1, 1, 1)
-            GameTooltip:AddLine("|A:Professions-ChatIcon-Quality-Tier3:16:16:0:0|a " .. SecondsToClock(Helpers:calculateDungeonTimer(dungeon.time, dungeonLevel, 3, seasonID), false), 1, 1, 1)
-            GameTooltip:Show()
-
-            SetHighlightColor(dungeonFrame, 1, 1, 1, 0.05)
-          end)
-          dungeonFrame:SetScript("OnLeave", function()
-            GameTooltip:Hide()
-            SetHighlightColor(dungeonFrame, 1, 1, 1, 0)
-          end)
+          dungeonFrame.dungeon = dungeon
+          dungeonFrame.affixScores = affixScores
+          dungeonFrame.overallScore = overallScore
+          dungeonFrame.hasBestRun = (inTimeInfo or overTimeInfo) ~= nil
+          dungeonFrame.bestAffixScore = bestAffixScore
+          dungeonFrame.color = color
+          dungeonFrame.tier = tier
+          dungeonFrame.dungeonLevel = dungeonLevel
+          dungeonFrame.seasonID = seasonID
 
           SetBackgroundColor(dungeonFrame, 1, 1, 1, dungeonIndex % 2 == 0 and 0.01 or 0)
           dungeonFrame:SetPoint("TOPLEFT", characterFrame, "TOPLEFT", 0, -totalHeight)
@@ -2339,6 +2356,38 @@ function Module:Render()
             difficultyFrame = CreateFrame("Frame", "$parentRaidDifficulty" .. difficultyIndex, characterFrame)
             difficultyFrame.iconFrames = {}
             -- difficultyFrame.dividers = {}
+            difficultyFrame:SetScript("OnEnter", function()
+              local frameDifficulty = difficultyFrame.difficulty
+              local frameCharacter = difficultyFrame.character
+              GameTooltip:SetOwner(difficultyFrame, "ANCHOR_RIGHT")
+              GameTooltip:SetText("Raid Progress", 1, 1, 1, 1, true)
+              GameTooltip:AddLine(format("Difficulty: |cffffffff%s|r", frameDifficulty.short and frameDifficulty.short or frameDifficulty.name))
+              TableForEach(difficultyFrame.raids, function(raid, raidIndex)
+                GameTooltip:AddLine(" ")
+                GameTooltip:AddLine(raid.name)
+                TableForEach(raid.encounters, function(encounter)
+                  local color = LIGHTGRAY_FONT_COLOR
+                  if frameCharacter.raids.savedInstances then
+                    local savedInstance = TableFind(frameCharacter.raids.savedInstances, function(instance)
+                      return GetBaseDifficultyID(instance.difficultyID) == frameDifficulty.id and instance.instanceID == raid.instanceID and instance.expires > time()
+                    end)
+                    if savedInstance then
+                      local savedEncounter = TableGet(savedInstance.encounters, "instanceEncounterID", encounter.instanceEncounterID)
+                      if savedEncounter and savedEncounter.isKilled then
+                        color = GREEN_FONT_COLOR
+                      end
+                    end
+                  end
+                  GameTooltip:AddLine(encounter.name, color.r, color.g, color.b)
+                end)
+              end)
+              GameTooltip:Show()
+              SetHighlightColor(difficultyFrame, 1, 1, 1, 0.05)
+            end)
+            difficultyFrame:SetScript("OnLeave", function()
+              GameTooltip:Hide()
+              SetHighlightColor(difficultyFrame, 1, 1, 1, 0)
+            end)
             characterFrame.difficultyFrames[difficultyIndex] = difficultyFrame
           end
 
@@ -2351,37 +2400,9 @@ function Module:Render()
           rowCount = rowCount + 1
           totalHeight = totalHeight + RAIDS_ROW_HEIGHT
 
-          difficultyFrame:SetScript("OnEnter", function()
-            GameTooltip:SetOwner(difficultyFrame, "ANCHOR_RIGHT")
-            GameTooltip:SetText("Raid Progress", 1, 1, 1, 1, true)
-            GameTooltip:AddLine(format("Difficulty: |cffffffff%s|r", difficulty.short and difficulty.short or difficulty.name))
-            TableForEach(raids, function(raid, raidIndex)
-              GameTooltip:AddLine(" ")
-              GameTooltip:AddLine(raid.name)
-              TableForEach(raid.encounters, function(encounter)
-                local color = LIGHTGRAY_FONT_COLOR
-                if character.raids.savedInstances then
-                  local savedInstance = TableFind(character.raids.savedInstances, function(instance)
-                    return GetBaseDifficultyID(instance.difficultyID) == difficulty.id and instance.instanceID == raid.instanceID and instance.expires > time()
-                  end)
-                  if savedInstance then
-                    local savedEncounter = TableGet(savedInstance.encounters, "instanceEncounterID", encounter.instanceEncounterID)
-                    if savedEncounter and savedEncounter.isKilled then
-                      color = GREEN_FONT_COLOR
-                    end
-                  end
-                end
-                GameTooltip:AddLine(encounter.name, color.r, color.g, color.b)
-              end)
-            end)
-            GameTooltip:Show()
-            SetHighlightColor(difficultyFrame, 1, 1, 1, 0.05)
-          end)
-
-          difficultyFrame:SetScript("OnLeave", function()
-            GameTooltip:Hide()
-            SetHighlightColor(difficultyFrame, 1, 1, 1, 0)
-          end)
+          difficultyFrame.difficulty = difficulty
+          difficultyFrame.character = character
+          difficultyFrame.raids = raids
 
           local gapWidth = 6
           local encounterX = 3
@@ -2468,6 +2489,60 @@ function Module:Render()
             currencyFrame.Text:SetPoint("TOPLEFT", currencyFrame, "TOPLEFT", Constants.sizes.padding, -3)
             currencyFrame.Text:SetPoint("BOTTOMRIGHT", currencyFrame, "BOTTOMRIGHT", -Constants.sizes.padding, 3)
             currencyFrame.Text:SetJustifyH("LEFT")
+            currencyFrame:SetScript("OnEnter", function()
+              local frameCurrency = currencyFrame.currency
+              local frameCharacterCurrency = currencyFrame.characterCurrency
+              GameTooltip:SetOwner(currencyFrame, "ANCHOR_RIGHT")
+              if frameCurrency.currencyType == "delveMap" then
+                GameTooltip:SetText(frameCurrency.name, 1, 1, 1)
+                if not frameCharacterCurrency then
+                  GameTooltip:AddDoubleLine("Status:", "No Data", nil, nil, nil, 1, 1, 1)
+                  GameTooltip:AddLine("Log your character to update.", 1, 1, 1, true)
+                else
+                  GameTooltip:AddDoubleLine("Status:", currencyFrame.statusValue, nil, nil, nil, 1, 1, 1)
+                  GameTooltip:AddDoubleLine("In bags:", tostring(frameCharacterCurrency.bagCount or 0), nil, nil, nil, 1, 1, 1)
+                  GameTooltip:AddDoubleLine("Buff active:", frameCharacterCurrency.hasBuff and "Yes" or "No", nil, nil, nil, 1, 1, 1)
+                end
+              else
+                local charQuantity = currencyFrame.charQuantity
+                local charTotalEarned = currencyFrame.charTotalEarned
+                local charEarnedThisWeek = currencyFrame.charEarnedThisWeek
+                local infoMaxQuantity = currencyFrame.infoMaxQuantity
+                local infoMaxWeeklyQuantity = currencyFrame.infoMaxWeeklyQuantity
+                GameTooltip:SetText("Currency Progress", 1, 1, 1)
+                GameTooltip:AddDoubleLine("Owned:", tostring(charQuantity), nil, nil, nil, 1, 1, 1)
+                if infoMaxWeeklyQuantity > 0 then
+                  GameTooltip:AddDoubleLine("Weekly Maximum:", format("%d/%d", charEarnedThisWeek, infoMaxWeeklyQuantity), nil, nil, nil, 1, 1, 1)
+                end
+                if frameCurrency.useTotalEarnedForMaxQty then
+                  if infoMaxQuantity > 0 then
+                    GameTooltip:AddDoubleLine("Season Maximum:", format("%d/%d", charTotalEarned, infoMaxQuantity), nil, nil, nil, 1, 1, 1)
+                  else
+                    if charTotalEarned > 0 then
+                      GameTooltip:AddDoubleLine("Season Earned:", tostring(charTotalEarned), nil, nil, nil, 1, 1, 1)
+                    end
+                    GameTooltip:AddDoubleLine("Season Maximum:", "No limit", nil, nil, nil, 1, 1, 1)
+                  end
+                else
+                  if charTotalEarned > 0 then
+                    GameTooltip:AddDoubleLine("Total Earned:", tostring(charTotalEarned), nil, nil, nil, 1, 1, 1)
+                  end
+                  if infoMaxQuantity > 0 then
+                    GameTooltip:AddDoubleLine("Total Maximum:", tostring(infoMaxQuantity), nil, nil, nil, 1, 1, 1)
+                  end
+                end
+              end
+              if frameCurrency.tooltipNote then
+                GameTooltip:AddLine(" ")
+                GameTooltip:AddLine(format("%s %s", RARE_BLUE_COLOR:WrapTextInColorCode(addon.name .. ":"), frameCurrency.tooltipNote), 1, 1, 1, true)
+              end
+              GameTooltip:Show()
+              SetHighlightColor(currencyFrame, 1, 1, 1, 0.05)
+            end)
+            currencyFrame:SetScript("OnLeave", function()
+              GameTooltip:Hide()
+              SetHighlightColor(currencyFrame, 1, 1, 1, 0)
+            end)
             characterFrame.currencyFrames[currencyIndex] = currencyFrame
           end
 
@@ -2497,24 +2572,7 @@ function Module:Render()
 
             currencyFrame.Text:SetText(cellText)
             currencyFrame.Text:SetJustifyH(Data.db.global.currencies.alignCenter and "CENTER" or "LEFT")
-            currencyFrame:SetScript("OnEnter", function()
-              GameTooltip:SetOwner(currencyFrame, "ANCHOR_RIGHT")
-              GameTooltip:SetText(currency.name, 1, 1, 1)
-              if not characterCurrency then
-                GameTooltip:AddDoubleLine("Status:", "No Data", nil, nil, nil, 1, 1, 1)
-                GameTooltip:AddLine("Log your character to update.", 1, 1, 1, true)
-              else
-                GameTooltip:AddDoubleLine("Status:", statusValue, nil, nil, nil, 1, 1, 1)
-                GameTooltip:AddDoubleLine("In bags:", tostring(characterCurrency.bagCount or 0), nil, nil, nil, 1, 1, 1)
-                GameTooltip:AddDoubleLine("Buff active:", characterCurrency.hasBuff and "Yes" or "No", nil, nil, nil, 1, 1, 1)
-              end
-              if currency.tooltipNote then
-                GameTooltip:AddLine(" ")
-                GameTooltip:AddLine(format("%s %s", RARE_BLUE_COLOR:WrapTextInColorCode(addon.name .. ":"), currency.tooltipNote), 1, 1, 1, true)
-              end
-              GameTooltip:Show()
-              SetHighlightColor(currencyFrame, 1, 1, 1, 0.05)
-            end)
+            currencyFrame.statusValue = statusValue
           else
             local infoMaxQuantity = currency.maxQuantity or 0
             local infoMaxWeeklyQuantity = currency.maxWeeklyQuantity or 0
@@ -2555,44 +2613,15 @@ function Module:Render()
 
             currencyFrame.Text:SetText(cellColor:WrapTextInColorCode(cellValue))
             currencyFrame.Text:SetJustifyH(Data.db.global.currencies.alignCenter and "CENTER" or "LEFT")
-            currencyFrame:SetScript("OnEnter", function()
-              GameTooltip:SetOwner(currencyFrame, "ANCHOR_RIGHT")
-              GameTooltip:SetText("Currency Progress", 1, 1, 1)
-              GameTooltip:AddDoubleLine("Owned:", tostring(charQuantity), nil, nil, nil, 1, 1, 1)
-              if infoMaxWeeklyQuantity > 0 then
-                GameTooltip:AddDoubleLine("Weekly Maximum:", format("%d/%d", charEarnedThisWeek, infoMaxWeeklyQuantity), nil, nil, nil, 1, 1, 1)
-              end
-              if currency.useTotalEarnedForMaxQty then
-                if infoMaxQuantity > 0 then
-                  GameTooltip:AddDoubleLine("Season Maximum:", format("%d/%d", charTotalEarned, infoMaxQuantity), nil, nil, nil, 1, 1, 1)
-                else
-                  if charTotalEarned > 0 then
-                    GameTooltip:AddDoubleLine("Season Earned:", tostring(charTotalEarned), nil, nil, nil, 1, 1, 1)
-                  end
-                  GameTooltip:AddDoubleLine("Season Maximum:", "No limit", nil, nil, nil, 1, 1, 1)
-                end
-              else
-                if charTotalEarned > 0 then
-                  GameTooltip:AddDoubleLine("Total Earned:", tostring(charTotalEarned), nil, nil, nil, 1, 1, 1)
-                end
-                if infoMaxQuantity > 0 then
-                  GameTooltip:AddDoubleLine("Total Maximum:", tostring(infoMaxQuantity), nil, nil, nil, 1, 1, 1)
-                end
-              end
-              if currency.tooltipNote then
-                GameTooltip:AddLine(" ")
-                GameTooltip:AddLine(format("%s %s", RARE_BLUE_COLOR:WrapTextInColorCode(addon.name .. ":"), currency.tooltipNote), 1, 1, 1, true)
-              end
-              GameTooltip:Show()
-              SetHighlightColor(currencyFrame, 1, 1, 1, 0.05)
-            end)
+            currencyFrame.charQuantity = charQuantity
+            currencyFrame.charTotalEarned = charTotalEarned
+            currencyFrame.charEarnedThisWeek = charEarnedThisWeek
+            currencyFrame.infoMaxQuantity = infoMaxQuantity
+            currencyFrame.infoMaxWeeklyQuantity = infoMaxWeeklyQuantity
           end
 
-          currencyFrame:SetScript("OnLeave", function()
-            GameTooltip:Hide()
-            SetHighlightColor(currencyFrame, 1, 1, 1, 0)
-          end)
-
+          currencyFrame.currency = currency
+          currencyFrame.characterCurrency = characterCurrency
           SetBackgroundColor(currencyFrame, 1, 1, 1, currencyIndex % 2 == 0 and 0.01 or 0)
           currencyFrame:SetPoint("TOPLEFT", characterFrame, "TOPLEFT", 0, -totalHeight)
           currencyFrame:SetPoint("TOPRIGHT", characterFrame, "TOPRIGHT", 0, -totalHeight)
