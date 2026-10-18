@@ -74,7 +74,7 @@ function Core:OnInitialize()
   hooksecurefunc("ResetInstances", function()
     self:OnInstanceReset()
   end)
-  self:Render()
+  self:RenderNow()
 end
 
 ---Toggle the main window
@@ -103,13 +103,23 @@ function Core:ToggleEquipment()
   module:OpenCharacter(character)
 end
 
----Render all modules
-function Core:Render()
-  for _, module in addon.Core:IterateModules() do
+---Render all modules immediately
+function Core:RenderNow()
+  for _, module in self:IterateModules() do
     if module.Render ~= nil then
       module:Render()
     end
   end
+end
+
+---Request a render of all modules. Requests made within the same frame are coalesced into one.
+function Core:Render()
+  if self.renderQueued then return end
+  self.renderQueued = true
+  C_Timer.After(0, function()
+    self.renderQueued = false
+    self:RenderNow()
+  end)
 end
 
 ---Register event handlers for game data updates
@@ -121,6 +131,7 @@ function Core:OnEnable()
     }, function()
       Data:UpdateCharacterInfo()
       Data:UpdateEquipment()
+      self:Render()
     end
   )
   addon.Events:RegisterEvent(
@@ -171,13 +182,9 @@ function Core:OnEnable()
     {
       "BAG_UPDATE_DELAYED",
       "CHALLENGE_MODE_COMPLETED",
-      "CHALLENGE_MODE_COMPLETED",
       "CHALLENGE_MODE_MAPS_UPDATE",
-      "CHALLENGE_MODE_MAPS_UPDATE",
-      "CHALLENGE_MODE_RESET",
       "CHALLENGE_MODE_RESET",
       "ITEM_CHANGED",
-      "MYTHIC_PLUS_NEW_WEEKLY_RECORD",
       "MYTHIC_PLUS_NEW_WEEKLY_RECORD",
     }, function()
       Data:UpdateKeystoneItem()
